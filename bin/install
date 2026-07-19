@@ -1,0 +1,81 @@
+#!/bin/sh
+set -eu
+
+repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+prepare_only=false
+
+for argument in "$@"; do
+  case "$argument" in
+    --prepare-only) prepare_only=true ;;
+    *) echo "Usage: $0 [--prepare-only]" >&2; exit 2 ;;
+  esac
+done
+
+if [ "$(uname -s)" != "Darwin" ] && [ "$prepare_only" != true ]; then
+  echo "The automatic background-service installer currently supports macOS only." >&2
+  exit 1
+fi
+
+for tool in node npm; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "$tool is required but was not found on PATH." >&2
+    exit 1
+  fi
+done
+
+node -e 'const [a,b]=process.versions.node.split(".").map(Number); if (!(a>22 || (a===22 && b>=19))) { console.error("Node.js 22.19 or newer is required."); process.exit(1) }'
+
+cd "$repo_dir"
+npm ci --omit=dev
+
+if command -v uv >/dev/null 2>&1; then
+  uv venv --python 3.12 .venv
+  uv pip install --python .venv/bin/python 'litellm[proxy]==1.93.0'
+else
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "Python 3.10+ or uv is required to install LiteLLM." >&2
+    exit 1
+  fi
+  python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else "Python 3.10 or newer is required.")'
+  python3 -m venv .venv
+  .venv/bin/python -m pip install --upgrade pip
+  .venv/bin/python -m pip install 'litellm[proxy]==1.93.0'
+fi
+
+node src/secret.mjs ensure
+state_dir=${KIMI_CODEX_STATE_DIR:-${CODEX_HOME:-$HOME/.codex}/kimi-router}
+if [ -s "$state_dir/native-models.json" ]; then
+  node src/catalog.mjs
+else
+  node src/catalog.mjs --refresh-native
+fi
+
+if [ "$prepare_only" = true ]; then
+  echo "Dependencies, service key, and model catalog are prepared. Codex config was not changed."
+  exit 0
+fi
+
+config_enabled=false
+service_installed=false
+rollback() {
+  if [ "$service_installed" = true ]; then
+    node src/service-macos.mjs uninstall >/dev/null 2>&1 || true
+  fi
+  if [ "$config_enabled" = true ]; then
+    node src/config-manager.mjs disable >/dev/null 2>&1 || true
+  fi
+}
+trap rollback EXIT HUP INT TERM
+
+node src/config-manager.mjs enable
+config_enabled=true
+service_installed=true
+node src/service-macos.mjs install
+node src/wait-health.mjs
+config_enabled=false
+service_installed=false
+trap - EXIT HUP INT TERM
+
+echo "Installed Kimi K3 (OAuth) and Kimi K3 (API) for Codex."
+echo "Fully quit and reopen Codex, then start a new task."
+echo "For API-key access, run: $repo_dir/bin/api-key set"

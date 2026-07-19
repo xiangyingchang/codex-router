@@ -1,0 +1,17 @@
+{
+  "name": "kimi-codex-router",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local Kimi K3 OAuth and API routes for the Codex App model picker",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "check": "node scripts-check.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "proper-lockfile": "4.1.2"
+  }
+}
