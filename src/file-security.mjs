@@ -16,13 +16,22 @@ function currentWindowsSid() {
   return windowsSid;
 }
 
+export function windowsFullControlGrant(sid) {
+  if (!/^S-\d+(?:-\d+)+$/i.test(sid)) {
+    throw new Error("Could not format an invalid Windows user SID.");
+  }
+  // icacls requires an asterisk before a numeric SID so it is not resolved as
+  // an account name. Without it, hosted runners fail with system error 1332.
+  return `*${sid}:(F)`;
+}
+
 export function protectPrivateFile(target) {
   chmodSync(target, 0o600);
   if (process.platform !== "win32") return target;
   const sid = currentWindowsSid();
   execFileSync(
     "icacls.exe",
-    [target, "/inheritance:r", "/grant:r", `${sid}:(F)`],
+    [target, "/inheritance:r", "/grant:r", windowsFullControlGrant(sid)],
     { stdio: "ignore" },
   );
   return target;
@@ -32,10 +41,15 @@ export function privateFileIsProtected(target) {
   if (!existsSync(target)) return false;
   if (process.platform !== "win32") return (statSync(target).mode & 0o777) === 0o600;
   const script = [
-    "$acl = Get-Acl -LiteralPath $env:CODEX_ROUTER_PRIVATE_FILE",
-    "$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value",
+    // Get-Acl lazy-loads Microsoft.PowerShell.Security, which can fail under
+    // concurrent Windows processes. The .NET API returns the same FileSecurity
+    // object without importing a PowerShell module.
+    "$acl = [System.IO.File]::GetAccessControl($env:CODEX_ROUTER_PRIVATE_FILE)",
+    "$identity = [Security.Principal.WindowsIdentity]::GetCurrent()",
+    "$sid = $identity.User.Value",
+    "$name = $identity.Name",
     "$allowed = $false",
-    "foreach ($rule in $acl.Access) { try { $ruleSid = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } catch { continue }; if ($ruleSid -eq $sid -and $rule.AccessControlType -eq 'Allow') { $allowed = $true } }",
+    "foreach ($rule in $acl.Access) { $ruleIdentity = $rule.IdentityReference.Value; $matches = $ruleIdentity -eq $sid -or $ruleIdentity -eq $name; if (-not $matches) { try { $matches = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -eq $sid } catch { $matches = $false } }; if ($matches -and $rule.AccessControlType -eq 'Allow') { $allowed = $true } }",
     "[Console]::Out.Write(($acl.AreAccessRulesProtected -and $allowed).ToString())",
   ].join("; ");
   try {
