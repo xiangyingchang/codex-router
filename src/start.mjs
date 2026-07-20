@@ -126,6 +126,7 @@ const gateway = run(litellm, [
 await waitForHealth(
   loopback(PORTS.gateway, "/health/liveliness"),
   { Authorization: `Bearer ${internalKey}` },
+  120_000,
 );
 
 const router = run(process.execPath, [path.join(SOURCE_ROOT, "src", "router.mjs")]);
