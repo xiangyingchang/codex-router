@@ -15,6 +15,7 @@ import {
   readRequestBody,
   writeJson,
 } from "./http-utils.mjs";
+import { convertForeignCompaction } from "./history-normalize.mjs";
 import { MERGED_CATALOG_PATH, PORTS, loopback } from "./paths.mjs";
 import { MODEL_BY_SLUG, providerForModel } from "./model-registry.mjs";
 import { readProviderSelection } from "./provider-selection.mjs";
@@ -463,6 +464,7 @@ async function handleResponses(request, response, requestUrl) {
   } else {
     const native = { ...payload };
     if (!compactV1) delete native.previous_response_id;
+    if (Array.isArray(native.input)) native.input = convertForeignCompaction(native.input);
     target = nativeTarget(requestUrl.pathname, requestUrl.search);
     headers = nativeHeaders(request);
     routedBody = Buffer.from(JSON.stringify(native), "utf8");

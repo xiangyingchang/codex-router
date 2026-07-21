@@ -7,6 +7,7 @@ import {
   requireInternalAuth,
   writeJson,
 } from "./http-utils.mjs";
+import { repairToolCallPairing } from "./history-normalize.mjs";
 import { PORTS } from "./paths.mjs";
 import {
   API_MODELS,
@@ -74,6 +75,9 @@ function normalizeBody(buffer, contentType) {
   } else if (model.requestProfile === "deepseek-nonthinking") {
     payload.thinking = { type: "disabled" };
     delete payload.reasoning_effort;
+  }
+  if (Array.isArray(payload.messages)) {
+    payload.messages = repairToolCallPairing(payload.messages);
   }
   return { body: Buffer.from(JSON.stringify(payload), "utf8"), model, provider };
 }

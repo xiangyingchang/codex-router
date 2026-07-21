@@ -411,3 +411,163 @@ test("API forwarder supports all DeepSeek V4 models and normalizes thinking", as
     await closeServer(upstream.server);
   }
 });
+
+test("router native path converts foreign kcr1 compaction and leaves native cmp_ alone", async () => {
+  const nativeRequests = [];
+  const native = await mockServer(async (request, response) => {
+    nativeRequests.push({
+      url: request.url,
+      headers: request.headers,
+      body: await bodyJson(request),
+    });
+    json(response, 200, { route: "native" });
+  });
+  const routerPort = await openPort();
+  const router = run("router.mjs", {
+    CODEX_ROUTER_PORT: String(routerPort),
+    CODEX_NATIVE_BASE_URL: `http://127.0.0.1:${native.port}/backend-api/codex`,
+    CODEX_ROUTER_QUIET: "1",
+  });
+
+  try {
+    await waitFor(`http://127.0.0.1:${routerPort}/v1/models`, router);
+    const foreignSummary = Buffer.from("the summary text", "utf8").toString("base64");
+    const foreignCompaction = {
+      type: "compaction",
+      id: "cmp_foreign_xyz",
+      encrypted_content: `kcr1:${foreignSummary}`,
+    };
+    const nativeCompaction = {
+      type: "compaction",
+      id: "cmp_native_abc",
+      encrypted_content: "cmp_abcdef123456",
+    };
+    const userMessage = {
+      type: "message",
+      role: "user",
+      content: [{ type: "input_text", text: "continue" }],
+    };
+    const response = await fetch(`http://127.0.0.1:${routerPort}/v1/responses`, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer CODEX_CALLER_SECRET",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-5",
+        input: [foreignCompaction, nativeCompaction, userMessage],
+        previous_response_id: "remove-me",
+      }),
+    });
+    assert.equal(response.status, 200);
+    const forwarded = nativeRequests[0].body;
+    // Native path must still strip previous_response_id for non-compact requests.
+    assert.equal(forwarded.previous_response_id, undefined);
+    const forwardedInput = forwarded.input;
+    // Item 0: foreign kcr1 compaction -> replaced with a message item.
+    assert.equal(forwardedInput[0].type, "message");
+    assert.equal(forwardedInput[0].role, "user");
+    assert.equal(forwardedInput[0].content[0].type, "input_text");
+    assert.match(forwardedInput[0].content[0].text, /^Another language model started this task/);
+    assert.match(forwardedInput[0].content[0].text, /the summary text$/);
+    // Item 1: native cmp_ compaction -> passed through byte-for-byte unchanged.
+    assert.deepEqual(forwardedInput[1], nativeCompaction);
+    // Item 2: regular user message -> unchanged.
+    assert.deepEqual(forwardedInput[2], userMessage);
+  } finally {
+    await stopChild(router);
+    await closeServer(native.server);
+  }
+});
+
+test("api-forwarder repairs missing tool-result messages and is a no-op on clean input", async () => {
+  const { repairToolCallPairing } = await import("../src/history-normalize.mjs");
+
+  // --- Direct unit test: clean input returns the same reference, no mutation. ---
+  const clean = [
+    { role: "user", content: "hi" },
+    {
+      role: "assistant",
+      content: "",
+      tool_calls: [
+        { id: "call_a", type: "function", function: { name: "f", arguments: "{}" } },
+      ],
+    },
+    { role: "tool", tool_call_id: "call_a", content: "result a" },
+    { role: "assistant", content: "done" },
+  ];
+  const cleanResult = repairToolCallPairing(clean);
+  assert.equal(cleanResult, clean, "clean input must return the same array reference");
+  assert.equal(cleanResult.length, clean.length, "clean input must not grow");
+
+  // Guards: non-array input returned unchanged.
+  assert.equal(repairToolCallPairing(undefined), undefined);
+  assert.equal(repairToolCallPairing(null), null);
+  assert.equal(repairToolCallPairing("not-an-array"), "not-an-array");
+
+  // --- Integration test through api-forwarder: missing call_b gets synthesized. ---
+  const upstreamRequests = [];
+  const upstream = await mockServer(async (request, response) => {
+    upstreamRequests.push({ headers: request.headers, body: await bodyJson(request) });
+    json(response, 200, { choices: [] });
+  });
+  const forwarderPort = await openPort();
+  const forwarder = run("api-forwarder.mjs", {
+    CODEX_ROUTER_API_PORT: String(forwarderPort),
+    DEEPSEEK_API_BASE_URL: `http://127.0.0.1:${upstream.port}`,
+    DEEPSEEK_API_KEY: "TEST_DEEPSEEK_API_KEY",
+    CODEX_ROUTER_QUIET: "1",
+  });
+
+  try {
+    await waitFor(`http://127.0.0.1:${forwarderPort}/health`, forwarder);
+    const brokenMessages = [
+      { role: "user", content: "hi" },
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          { id: "call_a", type: "function", function: { name: "f", arguments: "{}" } },
+          { id: "call_b", type: "function", function: { name: "g", arguments: "{}" } },
+        ],
+      },
+      { role: "tool", tool_call_id: "call_a", content: "result a" },
+      { role: "assistant", content: "done" },
+    ];
+    const response = await fetch(
+      `http://127.0.0.1:${forwarderPort}/v1/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${INTERNAL_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "deepseek-v4-flash",
+          reasoning_effort: "low",
+          messages: brokenMessages,
+        }),
+      },
+    );
+    assert.equal(response.status, 200);
+    const forwardedMessages = upstreamRequests[0].body.messages;
+    // A synthesized tool message for call_b must be present.
+    const toolMessages = forwardedMessages.filter((m) => m.role === "tool");
+    const callB = toolMessages.find((m) => m.tool_call_id === "call_b");
+    assert.ok(callB, "synthesized tool message for call_b must be present");
+    assert.equal(callB.role, "tool");
+    assert.match(
+      callB.content,
+      /\[tool result not available - cross-model history normalized\]/,
+    );
+    // The existing tool message for call_a must be preserved.
+    const callA = toolMessages.find((m) => m.tool_call_id === "call_a");
+    assert.ok(callA, "existing tool message for call_a must be preserved");
+    assert.equal(callA.content, "result a");
+    // The original brokenMessages array was not mutated.
+    assert.equal(brokenMessages.length, 4);
+  } finally {
+    await stopChild(forwarder);
+    await closeServer(upstream.server);
+  }
+});
