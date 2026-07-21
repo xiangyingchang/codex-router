@@ -13,7 +13,7 @@ Required software:
 - Node.js 22.19+ (Node.js 24 LTS recommended)
 - `uv`, or Python 3.10+ with `venv`
 - Git for managed one-command installation and rollback
-- At least one Kimi OAuth, Kimi API, or DeepSeek API credential
+- At least one Kimi OAuth, Kimi API, DeepSeek API, or Ark Coding Plan credential
 
 The installer does not silently install a system package manager or runtime.
 When a prerequisite is missing, install it from its official source and rerun
@@ -23,7 +23,7 @@ the same command.
 
 ```text
 Install Codex Router from:
-https://github.com/duolahypercho/codex-router
+https://github.com/xiangyingchang/codex-router
 
 Follow AGENTS.md. Preserve all of my existing Codex settings and ChatGPT login.
 Use only the provider authentication I choose, safely migrate recognized older
@@ -39,27 +39,27 @@ definition stores the checkout's absolute path.
 macOS or Linux:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/duolahypercho/codex-router/main/install.sh | sh -s -- --guided
+curl -fsSL https://raw.githubusercontent.com/xiangyingchang/codex-router/main/install.sh | sh -s -- --guided
 ```
 
 Windows PowerShell:
 
 ```powershell
 $installer = Join-Path $env:TEMP "codex-router-install.ps1"
-Invoke-WebRequest https://raw.githubusercontent.com/duolahypercho/codex-router/main/install.ps1 -OutFile $installer
+Invoke-WebRequest https://raw.githubusercontent.com/xiangyingchang/codex-router/main/install.ps1 -OutFile $installer
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Guided
 ```
 
 Clone-and-review installation is also supported:
 
 ```sh
-git clone https://github.com/duolahypercho/codex-router.git
+git clone https://github.com/xiangyingchang/codex-router.git
 cd codex-router
 ./install.sh --guided
 ```
 
 ```powershell
-git clone https://github.com/duolahypercho/codex-router.git
+git clone https://github.com/xiangyingchang/codex-router.git
 Set-Location codex-router
 ./install.ps1 -Guided
 ```
@@ -78,6 +78,7 @@ API-key providers use hidden prompts:
 ```sh
 ./bin/provider-key kimi-api set
 ./bin/provider-key deepseek set
+./bin/provider-key ark-coding set
 ```
 
 Windows:
@@ -85,11 +86,17 @@ Windows:
 ```powershell
 ./codex-router.ps1 provider-key kimi-api set
 ./codex-router.ps1 provider-key deepseek set
+./codex-router.ps1 provider-key ark-coding set
 ```
 
-Kimi OAuth, Kimi Platform, and DeepSeek are separate account and billing
-systems. Never put a credential in chat, a command argument, shell history, the
-provider registry, or a tracked file.
+Kimi OAuth, Kimi Platform, DeepSeek, and Ark Coding Plan are separate account
+and billing systems. Ark Coding Plan is configured only with its dedicated
+OpenAI-compatible base URL,
+`https://ark.cn-beijing.volces.com/api/coding/v3`. Do not replace it with
+`https://ark.cn-beijing.volces.com/api/v3`: that endpoint does not consume the
+Coding Plan subscription and may incur separate usage charges. Never put a
+credential in chat, a command argument, shell history, the provider registry,
+or a tracked file.
 
 Noninteractive setup can reuse already configured credentials:
 
@@ -103,7 +110,8 @@ Or choose an exact set:
 ./install.sh --auto --providers kimi-oauth
 ./install.sh --kimi-api-key --auto
 ./install.sh --deepseek-api-key --auto
-./install.sh --auto --providers kimi-oauth,kimi-api,deepseek
+./install.sh --ark-coding-api-key --auto
+./install.sh --auto --providers kimi-oauth,kimi-api,deepseek,ark-coding
 ```
 
 `--smoke-test` makes one small live request per provider and may use paid quota;

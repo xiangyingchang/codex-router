@@ -14,7 +14,13 @@ import test from "node:test";
 const testRoot = mkdtempSync(path.join(os.tmpdir(), "codex-router-credentials-"));
 process.env.CODEX_HOME = path.join(testRoot, "codex");
 process.env.CODEX_ROUTER_STATE_DIR = path.join(testRoot, "state");
-for (const name of ["DEEPSEEK_API_KEY", "KIMI_API_KEY", "MOONSHOT_API_KEY"]) {
+for (const name of [
+  "ARK_API_KEY",
+  "ARK_CODING_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "KIMI_API_KEY",
+  "MOONSHOT_API_KEY",
+]) {
   delete process.env[name];
 }
 
@@ -36,6 +42,10 @@ test("provider credentials use protected files and remove legacy managed keys", 
     }
     assert.equal(resolveProviderCredential("deepseek")?.value, "TEST_DEEPSEEK_FILE_KEY");
 
+    const arkPath = writeProviderCredential("ark-coding", "TEST_ARK_CODING_FILE_KEY");
+    assert.equal(privateFileIsProtected(arkPath), true);
+    assert.equal(resolveProviderCredential("ark-coding")?.value, "TEST_ARK_CODING_FILE_KEY");
+
     const legacyDirectory = path.join(process.env.CODEX_HOME, "kimi-router");
     const legacyPath = path.join(legacyDirectory, "api-key.secret");
     mkdirSync(legacyDirectory, { recursive: true, mode: 0o700 });
@@ -46,6 +56,8 @@ test("provider credentials use protected files and remove legacy managed keys", 
     assert.equal(existsSync(legacyPath), false);
     assert.equal(removeProviderCredential("deepseek"), 1);
     assert.equal(existsSync(deepSeekPath), false);
+    assert.equal(removeProviderCredential("ark-coding"), 1);
+    assert.equal(existsSync(arkPath), false);
   } finally {
     rmSync(testRoot, { recursive: true, force: true });
   }

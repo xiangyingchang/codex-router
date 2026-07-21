@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-repository_url=${CODEX_ROUTER_REPOSITORY_URL:-https://github.com/duolahypercho/codex-router.git}
+repository_url=${CODEX_ROUTER_REPOSITORY_URL:-https://github.com/xiangyingchang/codex-router.git}
 default_data_dir=${XDG_DATA_HOME:-$HOME/.local/share}
 install_dir=$default_data_dir/codex-router
 prepare_only=false
@@ -24,6 +24,7 @@ Options:
   --api-key           Alias for --kimi-api-key
   --kimi-api-key      Prompt securely for a Kimi Platform API key
   --deepseek-api-key  Prompt securely for a DeepSeek API key
+  --ark-coding-api-key Prompt securely for an Ark Coding Plan API key
   --guided           Walk through provider selection and authentication
   --auto             Use configured credentials without questions
   --providers LIST   Enable comma-separated provider ids (or "configured")
@@ -62,6 +63,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --deepseek-api-key)
       configure_provider_keys="$configure_provider_keys deepseek"
+      shift
+      ;;
+    --ark-coding-api-key)
+      configure_provider_keys="$configure_provider_keys ark-coding"
       shift
       ;;
     --guided)
@@ -115,7 +120,7 @@ if [ -z "$repo_dir" ]; then
   if [ -d "$install_dir/.git" ]; then
     origin_url=$(git -C "$install_dir" remote get-url origin 2>/dev/null || true)
     case "$origin_url" in
-      "$repository_url"|https://github.com/duolahypercho/codex-router|https://github.com/duolahypercho/codex-router.git|git@github.com:duolahypercho/codex-router.git)
+      "$repository_url"|https://github.com/xiangyingchang/codex-router|https://github.com/xiangyingchang/codex-router.git|git@github.com:xiangyingchang/codex-router.git|https://github.com/duolahypercho/codex-router|https://github.com/duolahypercho/codex-router.git|git@github.com:duolahypercho/codex-router.git)
         ;;
       *)
         die "$install_dir already contains a different Git repository"

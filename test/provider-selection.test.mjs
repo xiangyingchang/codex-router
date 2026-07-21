@@ -8,7 +8,13 @@ const testRoot = mkdtempSync(path.join(os.tmpdir(), "codex-router-selection-"));
 process.env.CODEX_HOME = path.join(testRoot, "codex");
 process.env.CODEX_ROUTER_STATE_DIR = path.join(testRoot, "state");
 process.env.KIMI_CODE_HOME = path.join(testRoot, "kimi-code");
-for (const name of ["DEEPSEEK_API_KEY", "KIMI_API_KEY", "MOONSHOT_API_KEY"]) {
+for (const name of [
+  "ARK_API_KEY",
+  "ARK_CODING_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "KIMI_API_KEY",
+  "MOONSHOT_API_KEY",
+]) {
   delete process.env[name];
 }
 
@@ -26,7 +32,12 @@ const { privateFileIsProtected } = await import("../src/file-security.mjs");
 
 test("provider selection keeps backward compatibility and can hide the final provider", () => {
   try {
-    assert.deepEqual(readProviderSelection(), ["kimi-oauth", "kimi-api", "deepseek"]);
+    assert.deepEqual(readProviderSelection(), [
+      "kimi-oauth",
+      "kimi-api",
+      "deepseek",
+      "ark-coding",
+    ]);
     process.env.KIMI_API_KEY = "TEST_ENVIRONMENT_ONLY_KEY";
     assert.deepEqual(configuredProviderIds(), []);
     delete process.env.KIMI_API_KEY;

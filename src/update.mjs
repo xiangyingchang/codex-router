@@ -26,6 +26,9 @@ function requireManagedCheckout() {
   const configured = process.env.CODEX_ROUTER_REPOSITORY_URL;
   const allowed = new Set([
     configured,
+    "https://github.com/xiangyingchang/codex-router",
+    "https://github.com/xiangyingchang/codex-router.git",
+    "git@github.com:xiangyingchang/codex-router.git",
     "https://github.com/duolahypercho/codex-router",
     "https://github.com/duolahypercho/codex-router.git",
     "git@github.com:duolahypercho/codex-router.git",

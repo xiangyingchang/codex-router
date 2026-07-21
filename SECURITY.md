@@ -2,13 +2,15 @@
 
 ## Credential separation
 
-Codex Router handles four credential classes and keeps them on distinct paths:
+Codex Router handles five credential classes and keeps them on distinct paths:
 
 - ChatGPT/Codex authentication is allow-listed only for native GPT requests.
 - Kimi Code OAuth is read from the official Kimi CLI directory and sent only to
   the Kimi Code managed endpoint.
 - Kimi Platform API keys are sent only to the configured Kimi Platform endpoint.
 - DeepSeek API keys are sent only to the configured DeepSeek endpoint.
+- Ark Coding Plan API keys are sent only to the configured Volcengine Coding
+  Plan endpoint.
 
 External requests never receive ChatGPT account IDs, Codex installation IDs,
 attestation headers, or the caller's authorization header. The loopback gateway
@@ -27,6 +29,7 @@ Sensitive state lives under `$CODEX_HOME/codex-router` by default:
 | `internal-secret` | Random loopback service key | `600` |
 | `kimi-api-key.secret` | Optional Kimi Platform key | `600` |
 | `deepseek-api-key.secret` | Optional DeepSeek key | `600` |
+| `ark-coding-api-key.secret` | Optional Volcengine Ark Coding Plan key | `600` |
 | `native-models.json` | Cached native Codex catalog | `600` |
 | `merged-models.json` | Native plus registry model catalog | `600` |
 | `litellm.yaml` | Generated routes with environment references only | `600` |
@@ -63,6 +66,9 @@ separation, not an internet-facing authentication system.
 API base URL overrides are trusted-user configuration. A malicious override can
 send the matching provider credential to another server. Inspect background
 service environment changes and never accept an untrusted `config/providers.json`.
+Ark Coding Plan must use `https://ark.cn-beijing.volces.com/api/coding/v3`;
+the similarly named `/api/v3` endpoint is separately billed and does not consume
+the Coding Plan subscription.
 
 ## Configuration safety
 

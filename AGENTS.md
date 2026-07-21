@@ -20,12 +20,14 @@ user.
 3. Never ask the user to paste OAuth tokens or API keys into chat, command
    arguments, logs, environment snippets, or tracked files.
 4. Determine which provider IDs the user requested: `kimi-oauth`, `kimi-api`,
-   and/or `deepseek`. If they did not specify and credentials already exist, use
-   `configured` rather than showing providers that cannot authenticate.
+   `deepseek`, and/or `ark-coding`. If they did not specify and credentials
+   already exist, use `configured` rather than showing providers that cannot
+   authenticate.
 5. For Kimi OAuth, reuse a valid `kimi login` session. If login is needed, run
-   the official CLI only in an interactive terminal. For API providers, invoke
-   `bin/provider-key PROVIDER set` in a PTY so the repository's hidden prompt
-   receives the value directly; do not relay it through chat.
+   the official CLI only in an interactive terminal. For API providers,
+   including Ark Coding Plan, invoke `bin/provider-key PROVIDER set` in a PTY so
+   the repository's hidden prompt receives the value directly; do not relay it
+   through chat.
 6. Run read-only legacy detection. It is safe to pass `--migrate-known` when the
    detector identifies a repository-recognized older Codex Router: migration is
    scoped, snapshotted, and reversible. Never migrate, stop, delete, or replace

@@ -1,7 +1,8 @@
 # Codex Router
 
-Use Kimi, DeepSeek, and future external models from the normal Codex model
-picker without replacing native GPT models or your ChatGPT sign-in.
+Use Kimi, DeepSeek, Volcengine Ark Coding Plan, and future external models from
+the normal Codex model picker without replacing native GPT models or your
+ChatGPT sign-in.
 
 Codex Router is an independent community project. It is not affiliated with
 OpenAI, Moonshot AI, DeepSeek, OpenRouter, or the referenced opencodex project.
@@ -12,7 +13,7 @@ Paste this into a Codex task:
 
 ```text
 Install Codex Router from this public repository:
-https://github.com/duolahypercho/codex-router
+https://github.com/xiangyingchang/codex-router
 
 Follow AGENTS.md. Preserve my existing Codex model, profiles, settings, and
 ChatGPT login. Detect and safely migrate only recognized older versions, show
@@ -28,14 +29,14 @@ the final app restart. API keys are entered only in a hidden terminal prompt.
 macOS or Linux:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/duolahypercho/codex-router/main/install.sh | sh -s -- --guided
+curl -fsSL https://raw.githubusercontent.com/xiangyingchang/codex-router/main/install.sh | sh -s -- --guided
 ```
 
 Windows PowerShell:
 
 ```powershell
 $installer = Join-Path $env:TEMP "codex-router-install.ps1"
-Invoke-WebRequest https://raw.githubusercontent.com/duolahypercho/codex-router/main/install.ps1 -OutFile $installer
+Invoke-WebRequest https://raw.githubusercontent.com/xiangyingchang/codex-router/main/install.ps1 -OutFile $installer
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Guided
 ```
 
@@ -63,6 +64,17 @@ the Codex CLI and use a systemd user service.
 | Kimi K3 (API) | `kimi-api/kimi-k3` | Separately billed Kimi Platform API key |
 | DeepSeek V4 Flash (API) | `deepseek/deepseek-v4-flash` | DeepSeek API key |
 | DeepSeek V4 Pro (API) | `deepseek/deepseek-v4-pro` | DeepSeek API key |
+| Doubao Seed 2.0 Code (Ark) | `ark-coding/doubao-seed-2.0-code` | Ark Coding Plan API key |
+| Doubao Seed 2.0 Pro (Ark) | `ark-coding/doubao-seed-2.0-pro` | Ark Coding Plan API key |
+| Doubao Seed 2.0 Lite (Ark) | `ark-coding/doubao-seed-2.0-lite` | Ark Coding Plan API key |
+| Doubao Seed Code (Ark) | `ark-coding/doubao-seed-code` | Ark Coding Plan API key |
+| MiniMax M2.7 (Ark) | `ark-coding/minimax-m2.7` | Ark Coding Plan API key |
+| MiniMax M3 (Ark) | `ark-coding/minimax-m3` | Ark Coding Plan API key |
+| GLM 5.2 (Ark) | `ark-coding/glm-5.2` | Ark Coding Plan API key |
+| DeepSeek V4 Flash (Ark) | `ark-coding/deepseek-v4-flash` | Ark Coding Plan API key |
+| DeepSeek V4 Pro (Ark) | `ark-coding/deepseek-v4-pro` | Ark Coding Plan API key |
+| Kimi K2.6 (Ark) | `ark-coding/kimi-k2.6` | Ark Coding Plan API key |
+| Kimi K2.7 Code (Ark) | `ark-coding/kimi-k2.7-code` | Ark Coding Plan API key |
 
 Kimi Code OAuth and Kimi Platform API access are separate authentication and
 billing systems. The two Kimi entries intentionally coexist.
@@ -76,6 +88,7 @@ Only enabled providers appear in the picker. Manage them later with:
 ```sh
 ./bin/providers
 ./bin/providers enable deepseek
+./bin/providers enable ark-coding
 ./bin/providers disable kimi-api
 ```
 
@@ -92,6 +105,7 @@ Credentials can also be prepared directly:
 kimi login
 ./bin/provider-key kimi-api set
 ./bin/provider-key deepseek set
+./bin/provider-key ark-coding set
 ```
 
 The API-key prompt disables terminal echo. Protected files use mode `600` on
@@ -187,6 +201,7 @@ flowchart LR
   KO --> KC["Kimi Code API"]
   A --> KA["Kimi Platform API"]
   A --> D["DeepSeek API"]
+  A --> ARK["Volcengine Ark Coding Plan"]
 ```
 
 Codex uses the Responses API. The current external providers expose compatible
@@ -197,6 +212,11 @@ streaming, tool calls, and compaction traffic. All listeners bind to
 Codex authentication headers are allow-listed only for native requests.
 External routes receive a random internal loopback key; the final forwarder
 discards it and injects only the selected provider credential.
+
+Ark Coding Plan uses its dedicated OpenAI-compatible endpoint,
+`https://ark.cn-beijing.volces.com/api/coding/v3`. Do not substitute the
+separately billed `/api/v3` endpoint. The `glm-latest` upstream alias remains
+available as the hidden route `ark-coding/glm-latest` for CLI compatibility.
 
 ## Add future providers and models
 

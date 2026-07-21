@@ -1,7 +1,7 @@
 import { PORTS, loopback } from "./paths.mjs";
 
 const url = process.argv[2] || loopback(PORTS.router, "/health");
-const timeoutMs = Number(process.argv[3] || 30_000);
+const timeoutMs = Number(process.argv[3] || 150_000);
 const deadline = Date.now() + timeoutMs;
 let lastError = "service unavailable";
 

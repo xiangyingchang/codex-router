@@ -204,6 +204,7 @@ test("router preserves native auth and isolates every external route", async () 
       ["kimi-api/kimi-k3", "kimi-api-k3"],
       ["deepseek/deepseek-v4-flash", "deepseek-v4-flash"],
       ["deepseek/deepseek-v4-pro", "deepseek-v4-pro"],
+      ["ark-coding/doubao-seed-2.0-code", "ark-doubao-seed-2.0-code"],
     ]) {
       const response = await fetch(`http://127.0.0.1:${routerPort}/v1/responses`, {
         method: "POST",
@@ -405,6 +406,62 @@ test("API forwarder supports all DeepSeek V4 models and normalizes thinking", as
       assert.deepEqual(request.body.thinking, { type: "enabled" });
       assert.equal(request.body.reasoning_effort, effort);
       assert.equal(request.body.temperature, undefined);
+    }
+  } finally {
+    await stopChild(forwarder);
+    await closeServer(upstream.server);
+  }
+});
+
+test("API forwarder isolates Ark Coding Plan auth and preserves official model names", async () => {
+  const upstreamRequests = [];
+  const upstream = await mockServer(async (request, response) => {
+    upstreamRequests.push({
+      url: request.url,
+      headers: request.headers,
+      body: await bodyJson(request),
+    });
+    json(response, 200, { choices: [] });
+  });
+  const forwarderPort = await openPort();
+  const forwarder = run("api-forwarder.mjs", {
+    CODEX_ROUTER_API_PORT: String(forwarderPort),
+    ARK_CODING_BASE_URL: `http://127.0.0.1:${upstream.port}/api/coding/v3`,
+    ARK_CODING_API_KEY: "TEST_ARK_CODING_API_KEY",
+    CODEX_ROUTER_QUIET: "1",
+  });
+
+  try {
+    await waitFor(`http://127.0.0.1:${forwarderPort}/health`, forwarder);
+    for (const [gatewayModel, upstreamModel] of [
+      ["ark-doubao-seed-2.0-code", "doubao-seed-2.0-code"],
+      ["ark-glm-5.2", "glm-5.2"],
+      ["ark-kimi-k2.7-code", "kimi-k2.7-code"],
+    ]) {
+      const response = await fetch(
+        `http://127.0.0.1:${forwarderPort}/v1/chat/completions`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${INTERNAL_KEY}`,
+            "ChatGPT-Account-Id": "must-not-forward",
+            "X-Codex-Installation-Id": "must-not-forward",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: gatewayModel,
+            reasoning_effort: "high",
+            messages: [{ role: "user", content: "test" }],
+          }),
+        },
+      );
+      assert.equal(response.status, 200);
+      const request = upstreamRequests.at(-1);
+      assert.equal(request.url, "/api/coding/v3/chat/completions");
+      assert.equal(request.headers.authorization, "Bearer TEST_ARK_CODING_API_KEY");
+      assert.equal(request.headers["chatgpt-account-id"], undefined);
+      assert.equal(request.headers["x-codex-installation-id"], undefined);
+      assert.equal(request.body.model, upstreamModel);
     }
   } finally {
     await stopChild(forwarder);
