@@ -75,7 +75,7 @@ export function repairToolCallPairing(messages) {
     ) {
       return false;
     }
-    const ids = msg.tool_calls.map((tc) => tc?.id).filter((id) => id !== undefined);
+    const ids = [...new Set(msg.tool_calls.map((tc) => tc?.id).filter((id) => id !== undefined))];
     if (ids.length === 0) return false;
     const matched = new Set();
     for (let i = idx + 1; i < messages.length; i += 1) {
@@ -98,7 +98,7 @@ export function repairToolCallPairing(messages) {
       Array.isArray(msg.tool_calls) &&
       msg.tool_calls.length > 0
     ) {
-      const ids = msg.tool_calls.map((tc) => tc?.id).filter((id) => id !== undefined);
+      const ids = [...new Set(msg.tool_calls.map((tc) => tc?.id).filter((id) => id !== undefined))];
       if (ids.length === 0) continue;
       const matched = new Set();
       for (let i = idx + 1; i < messages.length; i += 1) {

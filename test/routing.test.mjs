@@ -628,3 +628,31 @@ test("api-forwarder repairs missing tool-result messages and is a no-op on clean
     await closeServer(upstream.server);
   }
 });
+
+test("repairToolCallPairing dedupes repeated tool_call_ids (no duplicate placeholders)", async () => {
+  const { repairToolCallPairing } = await import("../src/history-normalize.mjs");
+  // An assistant message with a duplicate tool_call_id (invalid per OpenAI spec,
+  // but possible in corrupted cross-model history) must yield exactly one
+  // synthesized placeholder, not two.
+  const messages = [
+    { role: "user", content: "hi" },
+    {
+      role: "assistant",
+      content: "",
+      tool_calls: [
+        { id: "call_dup", type: "function", function: { name: "f", arguments: "{}" } },
+        { id: "call_dup", type: "function", function: { name: "g", arguments: "{}" } },
+      ],
+    },
+    { role: "assistant", content: "done" },
+  ];
+  const result = repairToolCallPairing(messages);
+  const placeholders = result.filter(
+    (m) => m.role === "tool" && m.tool_call_id === "call_dup",
+  );
+  assert.equal(
+    placeholders.length,
+    1,
+    "duplicate tool_call_id must yield exactly one placeholder",
+  );
+});
